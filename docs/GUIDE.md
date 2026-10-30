@@ -148,29 +148,27 @@ non-zero status.
 
 ## Ignoring files (.zsyncignore)
 
-Put a `.zsyncignore` file at the root of a registered local folder to control
-what gets synced. It works like `.gitignore`, but uses
-[rclone's filter format](https://rclone.org/filtering/) and is passed to
-`rclone sync --filter-from`.
+Put a `.zsyncignore` file at the root of a registered local folder to list
+what should not be synced. It works like `.gitignore`, but uses
+[rclone's pattern syntax](https://rclone.org/filtering/) and is passed to
+`rclone sync --exclude-from`.
 
 ```text
 # Comments start with #
-# Keep this one file even though *.log is excluded below (first match wins)
-+ keep.log
 # Exclude all .log files, anywhere
-- *.log
+*.log
 # Exclude a folder and everything inside it, anywhere
-- node_modules/**
+node_modules/**
 # A leading / anchors to the root of the synced folder
-- /build/**
+/build/**
 ```
 
 Rules:
 
-- Every rule must start with `- ` (exclude) or `+ ` (include). A line without
-  a prefix (e.g. `build/`) is an error and the sync for that folder fails.
-- Rules are checked from top to bottom and the **first match wins**.
+- Each line is one pattern to exclude. Empty lines and lines starting with
+  `#` or `;` are ignored.
 - `*` matches within a folder name, `**` matches across folders.
+- To exclude a folder, use `folder/**`.
 
 Behavior:
 

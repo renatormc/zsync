@@ -32,11 +32,11 @@ pub fn remote_dir_exists(remote: &str) -> Result<bool> {
 }
 
 /// Runs `rclone sync <source> <dest>`.
-pub fn sync(source: &str, dest: &str, filter_from: Option<&Path>, progress: bool, dry_run: bool) -> Result<()> {
+pub fn sync(source: &str, dest: &str, exclude_from: Option<&Path>, progress: bool, dry_run: bool) -> Result<()> {
     let mut cmd = Command::new("rclone");
     cmd.args(["sync", source, dest]);
-    if let Some(path) = filter_from {
-        cmd.arg("--filter-from").arg(path);
+    if let Some(path) = exclude_from {
+        cmd.arg("--exclude-from").arg(path);
     }
     if progress {
         cmd.arg("--progress");

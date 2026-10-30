@@ -35,12 +35,12 @@ Add `-p` to `up`/`down` to show progress, or `-n` to do a dry run.
 > that exist only in the destination are **deleted**. When in doubt, use `-n`
 > first.
 
-To skip files, create a `.zsyncignore` file in the local folder using
-[rclone filter rules](https://rclone.org/filtering/):
+To skip files, create a `.zsyncignore` file in the local folder with one
+[rclone pattern](https://rclone.org/filtering/) per line:
 
 ```text
-- *.log
-- node_modules/**
+*.log
+node_modules/**
 ```
 
 See the [full guide](docs/GUIDE.md) for details.

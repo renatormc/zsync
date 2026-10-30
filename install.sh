@@ -3,7 +3,7 @@
 # and makes sure that folder is on the PATH via ~/.bashrc.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/renatormc/zsync/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/renatormc/zsync/master/install.sh | bash
 #
 # Set ZSYNC_VERSION (e.g. v0.1.0) to install a specific version.
 

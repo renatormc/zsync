@@ -30,7 +30,7 @@ rclone listremotes
 
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/renatormc/zsync/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/renatormc/zsync/master/install.sh | bash
 ```
 
 This downloads the latest release binary for your system into `~/.local/bin`
@@ -41,7 +41,7 @@ in your `~/.bashrc`, adds it to your `PATH` there. Open a new terminal (or run
 To install a specific version:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/renatormc/zsync/main/install.sh | ZSYNC_VERSION=v0.1.0 bash
+curl -fsSL https://raw.githubusercontent.com/renatormc/zsync/master/install.sh | ZSYNC_VERSION=v0.1.0 bash
 ```
 
 Running the same command again updates zsync.
@@ -180,5 +180,5 @@ them to the release automatically when a `v*` tag is pushed:
 # bump the version in Cargo.toml, then:
 git commit -am "v0.1.0"
 git tag v0.1.0
-git push origin main --tags
+git push origin master --tags
 ```

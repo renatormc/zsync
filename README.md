@@ -28,6 +28,7 @@ rclone listremotes
 
 ### Quick install (Linux/macOS, recommended)
 
+
 ```sh
 curl -fsSL https://raw.githubusercontent.com/renatormc/zsync/main/install.sh | bash
 ```

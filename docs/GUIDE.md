@@ -2,6 +2,7 @@
 
 - [Installation options](#installation-options)
 - [Commands in detail](#commands-in-detail)
+- [Ignoring files (.zsyncignore)](#ignoring-files-zsyncignore)
 - [Configuration file](#configuration-file)
 - [Publishing a new release (maintainers)](#publishing-a-new-release-maintainers)
 
@@ -125,6 +126,43 @@ Removing a pair only unregisters it; no files are deleted.
 
 If syncing one pair fails, the others still run and the command exits with a
 non-zero status.
+
+## Ignoring files (.zsyncignore)
+
+Put a `.zsyncignore` file at the root of a registered local folder to control
+what gets synced. It works like `.gitignore`, but uses
+[rclone's filter format](https://rclone.org/filtering/) and is passed to
+`rclone sync --filter-from`.
+
+```text
+# Comments start with #
+# Keep this one file even though *.log is excluded below (first match wins)
++ keep.log
+# Exclude all .log files, anywhere
+- *.log
+# Exclude a folder and everything inside it, anywhere
+- node_modules/**
+# A leading / anchors to the root of the synced folder
+- /build/**
+```
+
+Rules:
+
+- Every rule must start with `- ` (exclude) or `+ ` (include). A line without
+  a prefix (e.g. `build/`) is an error and the sync for that folder fails.
+- Rules are checked from top to bottom and the **first match wins**.
+- `*` matches within a folder name, `**` matches across folders.
+
+Behavior:
+
+- The `.zsyncignore` of the **local** folder is used for both `up` and `down`.
+  The file itself is synced like any other file, so it also ends up on the
+  remote.
+- Ignored files are left untouched on both sides: they're never copied, and
+  they're never deleted from the destination.
+- Only the file at the root of each registered folder is read; `.zsyncignore`
+  files in subfolders are ignored. Use patterns like `sub/folder/**` instead.
+- Test your rules with `zsync up -n` before syncing for real.
 
 ## Configuration file
 

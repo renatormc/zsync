@@ -10,6 +10,9 @@ use clap::{Parser, Subcommand};
 
 use config::{Config, Pair};
 
+/// Per-folder file with rclone filter rules, passed to `rclone sync --filter-from`.
+const IGNORE_FILE: &str = ".zsyncignore";
+
 #[derive(Parser)]
 #[command(name = "zsync", version, about = "Sync local and remote folder pairs using rclone")]
 struct Cli {
@@ -88,7 +91,13 @@ fn cmd_sync(direction: Direction, progress: bool, dry_run: bool) -> Result<()> {
             Direction::Down => (pair.remote.as_str(), local),
         };
         println!("==> {source} -> {dest}");
-        if let Err(e) = rclone::sync(source, dest, progress, dry_run) {
+        // The local folder's .zsyncignore (rclone filter format) is used in both directions.
+        let ignore_file = pair.local.join(IGNORE_FILE);
+        let filter_from = ignore_file.is_file().then_some(ignore_file.as_path());
+        if let Some(path) = filter_from {
+            println!("    using filters from {}", path.display());
+        }
+        if let Err(e) = rclone::sync(source, dest, filter_from, progress, dry_run) {
             eprintln!("Error: {e:#}");
             failures += 1;
         }

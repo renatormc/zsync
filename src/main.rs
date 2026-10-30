@@ -3,7 +3,7 @@ mod rclone;
 
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
+use std::process::{Command, ExitCode};
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
@@ -43,6 +43,8 @@ enum Commands {
     Remove,
     /// List registered folder pairs
     List,
+    /// Open the configuration file in your editor ($VISUAL or $EDITOR)
+    Config,
 }
 
 #[derive(Clone, Copy)]
@@ -59,6 +61,7 @@ fn main() -> ExitCode {
         Commands::Add => cmd_add(),
         Commands::Remove => cmd_remove(),
         Commands::List => cmd_list(),
+        Commands::Config => cmd_config(),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -168,6 +171,34 @@ fn cmd_list() -> Result<()> {
     } else {
         print_pairs(&config);
     }
+    Ok(())
+}
+
+fn cmd_config() -> Result<()> {
+    let path = config::config_file()?;
+    if !path.exists() {
+        Config::default().save()?;
+    }
+
+    let editor = std::env::var("VISUAL")
+        .ok()
+        .or_else(|| std::env::var("EDITOR").ok())
+        .filter(|e| !e.trim().is_empty())
+        .unwrap_or_else(|| if cfg!(windows) { "notepad" } else { "vi" }.to_string());
+    // The editor may include arguments, e.g. "code --wait".
+    let mut parts = editor.split_whitespace();
+    let program = parts.next().context("empty editor command")?;
+
+    let status = Command::new(program)
+        .args(parts)
+        .arg(&path)
+        .status()
+        .with_context(|| format!("failed to start editor `{editor}` (set $VISUAL or $EDITOR)"))?;
+    if !status.success() {
+        bail!("editor `{editor}` exited with {status}");
+    }
+
+    Config::load().context("the configuration has errors, run `zsync config` again to fix them")?;
     Ok(())
 }
 

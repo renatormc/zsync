@@ -128,7 +128,17 @@ non-zero status.
 
 ## Configuration file
 
-Pairs are stored in `~/.zsync/config.toml`, which you can also edit by hand:
+Pairs are stored in `~/.zsync/config.toml`. To edit it by hand, run:
+
+```sh
+zsync config
+```
+
+This opens the file in the editor set in `$VISUAL` or `$EDITOR` (falling back
+to `vi`, or `notepad` on Windows) and checks it for errors when you close the
+editor. The editor command may include arguments, e.g. `EDITOR="code --wait"`.
+
+The file looks like this:
 
 ```toml
 [[pairs]]

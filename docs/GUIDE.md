@@ -111,6 +111,25 @@ Removed: /home/user/Work <-> onedrive:/Work
 
 Removing a pair only unregisters it; no files are deleted.
 
+### `zsync check`
+
+Checks that every registered local and remote folder exists. Useful after
+editing the config by hand, or before a sync:
+
+```text
+$ zsync check
+  1. /home/user/Documents <-> gdrive:/Documents
+     local:  ok
+     remote: ok
+  2. /home/user/Work <-> onedrive:/Work
+     local:  ok
+     remote: NOT FOUND
+Error: 1 folder(s) not found
+```
+
+It exits with a non-zero status if any folder is missing, so it can be used in
+scripts (e.g. `zsync check && zsync up`).
+
 ### `zsync up` and `zsync down`
 
 - `zsync up` runs `rclone sync <local> <remote>` for each registered pair.

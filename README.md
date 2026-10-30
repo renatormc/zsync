@@ -26,6 +26,7 @@ zsync remove   # remove a pair
 zsync up       # upload: local -> remote
 zsync down     # download: remote -> local
 zsync config   # edit the config file in your editor
+zsync check    # check that all registered folders exist
 ```
 
 Add `-p` to `up`/`down` to show progress, or `-n` to do a dry run.

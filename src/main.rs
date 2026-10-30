@@ -48,6 +48,8 @@ enum Commands {
     List,
     /// Open the configuration file in your editor ($VISUAL or $EDITOR)
     Config,
+    /// Check that all registered local and remote folders exist
+    Check,
 }
 
 #[derive(Clone, Copy)]
@@ -65,6 +67,7 @@ fn main() -> ExitCode {
         Commands::Remove => cmd_remove(),
         Commands::List => cmd_list(),
         Commands::Config => cmd_config(),
+        Commands::Check => cmd_check(),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -180,6 +183,31 @@ fn cmd_list() -> Result<()> {
     } else {
         print_pairs(&config);
     }
+    Ok(())
+}
+
+fn cmd_check() -> Result<()> {
+    rclone::ensure_installed()?;
+    let config = Config::load()?;
+    if config.pairs.is_empty() {
+        println!("No folders registered. Use `zsync add` to add one.");
+        return Ok(());
+    }
+
+    let mut missing = 0;
+    for (i, pair) in config.pairs.iter().enumerate() {
+        println!("{:>3}. {} <-> {}", i + 1, pair.local.display(), pair.remote);
+        let local_ok = pair.local.is_dir();
+        let remote_ok = rclone::remote_dir_exists(&pair.remote)?;
+        println!("     local:  {}", if local_ok { "ok" } else { "NOT FOUND" });
+        println!("     remote: {}", if remote_ok { "ok" } else { "NOT FOUND" });
+        missing += usize::from(!local_ok) + usize::from(!remote_ok);
+    }
+
+    if missing > 0 {
+        bail!("{missing} folder(s) not found");
+    }
+    println!("All folders exist.");
     Ok(())
 }
 

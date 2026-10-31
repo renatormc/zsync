@@ -4,6 +4,7 @@
 - [Commands in detail](#commands-in-detail)
 - [Ignoring files (.zsyncignore)](#ignoring-files-zsyncignore)
 - [Configuration file](#configuration-file)
+  - [Including other configuration files](#including-other-configuration-files)
 - [Publishing a new release (maintainers)](#publishing-a-new-release-maintainers)
 
 ## Installation options
@@ -28,6 +29,26 @@ curl -fsSL https://raw.githubusercontent.com/renatormc/zsync/master/install.sh |
 If you use a shell other than bash (e.g. zsh), make sure `~/.local/bin` is on
 your `PATH` yourself.
 
+### Install script (Windows)
+
+In PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/renatormc/zsync/master/install.ps1 | iex
+```
+
+The script downloads the binary for your CPU (x86_64 or ARM64) from the latest
+release into `%LOCALAPPDATA%\Programs\zsync` and adds that folder to your user
+`PATH`. Open a new terminal afterwards. Running it again updates zsync.
+
+To install a specific version:
+
+```powershell
+$env:ZSYNC_VERSION = 'v0.1.0'; irm https://raw.githubusercontent.com/renatormc/zsync/master/install.ps1 | iex
+```
+
+rclone can be installed with `winget install Rclone.Rclone`.
+
 ### Prebuilt binary (manual)
 
 Download the archive for your system from the
@@ -39,7 +60,8 @@ Download the archive for your system from the
 | Linux ARM64           | `zsync-<version>-aarch64-unknown-linux-musl.tar.gz`  |
 | macOS Intel           | `zsync-<version>-x86_64-apple-darwin.tar.gz`         |
 | macOS Apple Silicon   | `zsync-<version>-aarch64-apple-darwin.tar.gz`        |
-| Windows               | `zsync-<version>-x86_64-pc-windows-msvc.zip`         |
+| Windows x86_64        | `zsync-<version>-x86_64-pc-windows-msvc.zip`         |
+| Windows ARM64         | `zsync-<version>-aarch64-pc-windows-msvc.zip`        |
 
 On Linux/macOS, extract it and put the binary in a folder on your `PATH`:
 
@@ -50,14 +72,15 @@ mv zsync-v0.1.0-x86_64-unknown-linux-musl/zsync ~/.local/bin/
 zsync --version
 ```
 
-The Linux binaries are statically linked (musl) and work on any distribution.
+The Linux binaries are statically linked and work on any distribution. On
+Windows, extract the zip and put `zsync.exe` in a folder on your `PATH`.
 
 ### From source
 
-With [Rust](https://rustup.rs) installed:
+With [Go](https://go.dev/dl/) installed:
 
 ```sh
-cargo install --git https://github.com/renatormc/zsync
+go install github.com/renatormc/zsync@latest
 ```
 
 Or by cloning the repository:
@@ -65,8 +88,8 @@ Or by cloning the repository:
 ```sh
 git clone https://github.com/renatormc/zsync
 cd zsync
-cargo build --release
-# binary at target/release/zsync
+go build
+# binary at ./zsync
 ```
 
 ## Commands in detail
@@ -86,7 +109,8 @@ Added: /home/user/Documents <-> gdrive:/Documents
 
 - The remote folder uses rclone's format, `<remote-name>:<path>`, with a remote
   you already configured via `rclone config`.
-- The local folder accepts `~` and is saved as an absolute path.
+- The local folder accepts `~` (`~/Documents`, or `~\Documents` on Windows) and
+  is saved as an absolute path.
 - Registering the same pair twice is rejected.
 
 ### `zsync list`
@@ -143,8 +167,23 @@ scripts (e.g. `zsync check && zsync up`).
 `rclone sync` makes the destination **identical** to the source, which includes
 **deleting** files in the destination that don't exist in the source.
 
-If syncing one pair fails, the others still run and the command exits with a
-non-zero status.
+Before syncing anything, both commands silently check that every registered
+local and remote folder exists (the same check as `zsync check`). If any is
+missing, **nothing is synced**: zsync lists the missing folders and exits with
+an error. This guards against typos, unmounted drives and folders that were
+moved, since syncing from an empty or wrong source would delete files in the
+destination.
+
+```text
+$ zsync up
+Some registered folders do not exist:
+  2. /media/usb/Photos <-> gdrive:/Photos
+     local folder not found:  /media/usb/Photos
+Error: 1 folder(s) not found, nothing was synced
+```
+
+Once that check passes, if syncing one pair fails, the others still run and the
+command exits with a non-zero status.
 
 ## Ignoring files (.zsyncignore)
 
@@ -183,7 +222,8 @@ Behavior:
 
 ## Configuration file
 
-Pairs are stored in `~/.zsync/config.toml`. To edit it by hand, run:
+Pairs are stored in `~/.zsync/config.toml` (on Windows,
+`%USERPROFILE%\.zsync\config.toml`). To edit it by hand, run:
 
 ```sh
 zsync config
@@ -192,6 +232,8 @@ zsync config
 This opens the file in the editor set in `$VISUAL` or `$EDITOR` (falling back
 to `vi`, or `notepad` on Windows) and checks it for errors when you close the
 editor. The editor command may include arguments, e.g. `EDITOR="code --wait"`.
+On Windows, a path with spaces works as is or in quotes, e.g.
+`"C:\Program Files\Notepad++\notepad++.exe" -multiInst`.
 
 The file looks like this:
 
@@ -205,7 +247,79 @@ remote = "onedrive:/Work"
 local = "/home/user/Work"
 ```
 
+On Windows, write local paths in single quotes, or double the backslashes inside
+double quotes, as TOML requires:
+
+```toml
+[[pairs]]
+remote = "gdrive:/Documents"
+local = 'C:\Users\me\Documents'   # same as "C:\\Users\\me\\Documents"
+```
+
+### Relative local paths
+
+`local` doesn't have to be absolute. A relative path is relative to the folder
+of the configuration file it is written in, and `~` is your home folder:
+
+```toml
+[[pairs]]
+remote = "gdrive:/Projects"
+local = "../Projects"     # next to the folder that holds this file
+
+[[pairs]]
+remote = "gdrive:/Documents"
+local = "~/Documents"     # /home/<you>/Documents, C:\Users\<you>\Documents...
+```
+
+This makes a configuration file portable: one kept in a synced folder (see
+[including other configuration files](#including-other-configuration-files))
+works on every computer, whatever the user name or where that folder lives.
+`zsync add` still saves absolute paths; `zsync list` and the sync commands show
+the resolved ones.
+
 zsync never touches rclone's own configuration.
+
+### Including other configuration files
+
+`config.toml` can pull in pairs from other TOML files with an `include` list.
+This is handy to keep a set of pairs in a file shared between computers (e.g.
+inside a synced folder), or to split work and personal folders:
+
+```toml
+include = [
+  "work.toml",                        # relative to ~/.zsync
+  "~/Dropbox/zsync/shared.toml",      # ~ is your home folder
+  "/etc/zsync/common.toml",           # absolute path
+]
+
+[[pairs]]
+remote = "gdrive:/Documents"
+local = "/home/user/Documents"
+```
+
+The easiest way to add one is:
+
+```sh
+zsync add-config-file ~/Dropbox/zsync/shared.toml   # or without the path, to be asked for it
+```
+
+It saves the file's absolute path in `include`, after checking that it is a
+valid configuration file that isn't already included. If the file doesn't exist,
+it offers to create it with a commented example, ready for you to fill in on
+this or another computer. You can also edit the list by hand with `zsync config`;
+`include` must come before the first `[[pairs]]`, as TOML requires. Included
+files have the same format: their own `[[pairs]]` and, optionally, their own
+`include` list.
+
+- Relative paths, in `include` and in `local`, are relative to the folder of
+  the file that contains them.
+- A file included more than once (or in a loop) is loaded only once.
+- A missing or invalid included file is an error, so nothing syncs until it's
+  fixed; `zsync config` checks the included files too.
+- `zsync list`, `remove` and `check` show `(from <file>)` next to pairs that
+  come from an included file.
+- `zsync add` always saves new pairs to `config.toml`. `zsync remove` removes
+  the pair from the file it is defined in, even if that is an included file.
 
 ## Publishing a new release (maintainers)
 
@@ -213,8 +327,7 @@ The `.github/workflows/release.yml` workflow builds the binaries for all
 platforms and attaches them to a GitHub release when a `v*` tag is pushed:
 
 ```sh
-# bump the version in Cargo.toml and run `cargo build` to update Cargo.lock, then:
-git commit -am "Release v0.1.1"
+# the version shown by `zsync --version` comes from the tag
 git tag v0.1.1
 git push origin master --tags
 ```

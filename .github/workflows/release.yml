@@ -11,55 +11,58 @@ permissions:
 jobs:
   build:
     name: ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        # Asset names keep the target triples used by install.sh and the docs.
         include:
           - target: x86_64-unknown-linux-musl
-            os: ubuntu-latest
+            goos: linux
+            goarch: amd64
           - target: aarch64-unknown-linux-musl
-            os: ubuntu-24.04-arm
+            goos: linux
+            goarch: arm64
           - target: x86_64-apple-darwin
-            os: macos-latest
+            goos: darwin
+            goarch: amd64
           - target: aarch64-apple-darwin
-            os: macos-latest
+            goos: darwin
+            goarch: arm64
           - target: x86_64-pc-windows-msvc
-            os: windows-latest
+            goos: windows
+            goarch: amd64
+          - target: aarch64-pc-windows-msvc
+            goos: windows
+            goarch: arm64
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Go
+        uses: actions/setup-go@v5
         with:
-          targets: ${{ matrix.target }}
+          go-version-file: go.mod
 
-      - name: Install musl-tools
-        if: contains(matrix.target, 'musl')
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
-
-      - name: Build
-        run: cargo build --release --locked --target ${{ matrix.target }}
-
-      - name: Package (Unix)
-        if: runner.os != 'Windows'
+      - name: Build and package
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
         run: |
           name=zsync-${{ github.ref_name }}-${{ matrix.target }}
+          exe=zsync
+          [ "$GOOS" = windows ] && exe=zsync.exe
           mkdir "$name"
-          cp target/${{ matrix.target }}/release/zsync README.md "$name/"
-          tar czf "$name.tar.gz" "$name"
-          echo "ASSET=$name.tar.gz" >> "$GITHUB_ENV"
-
-      - name: Package (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $name = "zsync-${{ github.ref_name }}-${{ matrix.target }}"
-          New-Item -ItemType Directory $name | Out-Null
-          Copy-Item target/${{ matrix.target }}/release/zsync.exe, README.md $name
-          Compress-Archive -Path $name -DestinationPath "$name.zip"
-          "ASSET=$name.zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+          go build -trimpath -ldflags "-s -w -X main.version=${{ github.ref_name }}" -o "$name/$exe" .
+          cp README.md "$name/"
+          if [ "$GOOS" = windows ]; then
+            zip -r "$name.zip" "$name"
+            echo "ASSET=$name.zip" >> "$GITHUB_ENV"
+          else
+            tar czf "$name.tar.gz" "$name"
+            echo "ASSET=$name.tar.gz" >> "$GITHUB_ENV"
+          fi
 
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
